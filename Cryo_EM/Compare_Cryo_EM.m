@@ -1,102 +1,130 @@
-figure(1);
-sample_size = 300; % in the paper, we let it to be 300;
-D = 2; d = 1;
-step1(sample_size, D, d);
-%figure(2);
-result = step2(sample_size, D, d);
-%saveas(gcf,'result1','eps');
-%saveas(gcf,'result2','eps');
+[clean, noisy] = cryo_em_data(0);
+Data_c = zeros(64*64, 200);
+sample_size = 200;
 
-
-function step1(sample_size, D, d)
-    [X1, X2, ~] = generate_sphere(0.08, D, sample_size, sample_size);
-    sigma = 0.4;
-    [~, data6]  = algorithm(X2, X1, sigma, 1, d);
-    [~, data6n] = algorithm(X2, X1, sigma, 7, d);
-%    [~, data6nn] = algorithm(X2, X1, sigma, 8);
-    %subplot('position',[0.04 0.1 0.45 0.82]);
-    subplot(2,2,1)
-    plot(X2(1,:), X2(2,:), 'd');
-    N2 = normalize(data6);
-    hold on
-    plot(data6(1,:), data6(2,:), 'b.');
-    hold on
-    plot(N2(1,:), N2(2,:), 'r.');
-    title('SCRE')
-    set(gca,'FontSize',16);
-    
-    %subplot('position',[0.53 0.1 0.45 0.82])
-    subplot(2,2,2)
-    plot(X2(1,:), X2(2,:), 'd');
-    N3 = normalize(data6n);
-    hold on
-    plot(data6n(1,:), data6n(2,:), 'b.');
-    hold on
-    plot(N3(1,:), N3(2,:), 'r.');
-    title('{\it{l}}-SCRE')
-    set(gca,'FontSize',16);
-%     
-%     subplot(1,3,3)
-%     plot(X2(1,:), X2(2,:), 'd');
-%     N3 = normalize(data6nn);
-%     hold on
-%     plot(data6nn(1,:), data6nn(2,:), 'b.');
-%     hold on
-%     plot(N3(1,:), N3(2,:), 'r.');
-%     title('Xia')
-    
-
-%    average_distance(data6, bsxfun(@rdivide, data6, sqrt(sum(data6.^2,1))))
-%    average_distance(data6n, bsxfun(@rdivide, data6n, sqrt(sum(data6n.^2,1))))
+sigma = 1;
+for i = 1:sample_size
+    Data_c(:,i) = reshape(clean(i,:,:),[64*64,1]);
 end
 
+[U,~,~] = svd(Data_c);
+D = 10;
+V = U(:,1:D);
+Data_o = U(:,1:D)'*Data_c;
+Data_n = zeros(D, sample_size);
 
-function result = step2(sample_size, D, d)
-    [X1, X2, ~] = generate_sphere(0.04, D, sample_size, sample_size);
-    sigma = 0.1:0.1:0.9;
-    result = zeros(8, length(sigma));
-    for i = 1:length(sigma)
-        [~, data6]     = algorithm(X2, X1, sigma(i), 1, d);
-        [~, data6n]    = algorithm(X2, X1, sigma(i), 7, d);
-        [~, data6nn]   = algorithm(X2, X1, sigma(i), 8, d);
-        [~, data6nnn]  = algorithm(X2, X1, sigma(i), 9, d);
-        result(1,i) = average_distance(data6, bsxfun(@rdivide, data6, sqrt(sum(data6.^2,1))));
-        result(2,i) = average_distance(data6n, bsxfun(@rdivide, data6n, sqrt(sum(data6n.^2,1))));
-        result(3,i) = average_distance(data6nn, bsxfun(@rdivide, data6nn, sqrt(sum(data6nn.^2,1))));
-        result(4,i) = average_distance(data6nnn, bsxfun(@rdivide, data6nnn, sqrt(sum(data6nnn.^2,1))));
-        result(5,i) = max_distance(data6, bsxfun(@rdivide, data6, sqrt(sum(data6.^2,1))));
-        result(6,i) = max_distance(data6n, bsxfun(@rdivide, data6n, sqrt(sum(data6n.^2,1))));
-        result(7,i) = max_distance(data6nn, bsxfun(@rdivide, data6nn, sqrt(sum(data6nn.^2,1))));
-        result(8,i) = max_distance(data6nnn, bsxfun(@rdivide, data6nnn, sqrt(sum(data6nnn.^2,1))));
-    end
-%     plot(result(1,:),'-*')
-%     hold on
-%     plot(result(2,:),'-o')
-    %subplot('position',[0.04 0.14 0.45 0.82])
-    marker1 = {'-*','-o','-->','--d'};
-    subplot(2,2,3)
+for i = 1:sample_size
+    Data_n(:,i) = Data_o(:,i)+sigma*randn(D,1);
+end
+
+X1 = Data_n;
+X2 = Data_n;
+
+norm_sq = sum(Data_n.^2,1);
+D = ones(sample_size,1)*norm_sq+norm_sq'*ones(1, sample_size)-2*Data_n'*Data_n;
+sigma_std = sqrt(mean(D(:)));
+
+d = 5; s = 100; 
+%%
+figure
+step1(Data_o, X1, X2, d, sigma_std, V, s);
+%result = step2(X1, X2, d, Data_o, sigma_std, s);
+%%
+figure
+h = (0.1:0.1:0.9)*sigma_std;
+%result = step2(X1, X2, d, Data_o, sigma_std, s);
+draw(result, h)
+
+function draw(result, h)
+    marker1 = {'r-.*','b-.o','k-.>','m-.d'};
+    subplot(1,2,1)
     for k = 1:4
-        semilogy(sigma,result(k,:),marker1{k},'linewidth',1.2); 
+        semilogy(h,result(k,:),marker1{k},'linewidth',1.2); 
         hold on; 
     end
     %semilogy(sigma, result(2,:),'--o','linewidth',1.2); %hold on; semilogy(sigma, result(3,:),'--s');
     legend('SCRE','{\it{l}}-SCRE','MFIT-i', 'MFIT-ii')
     xlabel('h')
     title('Average Margin')
+    axis([min(h), max(h), 1.5, 4])
     set(gca,'FontSize',16);
     
-    
     %subplot('position',[0.53 0.14 0.45 0.82])
-    subplot(2,2,4)
+    subplot(1,2,2)
     for k = 1:4
-        semilogy(sigma,result(4+k,:),marker1{k},'linewidth',1.2); 
+        semilogy(h,result(4+k,:),marker1{k},'linewidth',1.2); 
         hold on; 
     end  
     %semilogy(sigma, result(6,:),'--o','linewidth',1.2); %hold on; semilogy(sigma, result(6,:),'--s')
     legend('SCRE','{\it{l}}-SCRE','MFIT-i', 'MFIT-ii')
     xlabel('h')
     title('Hausdorff')
+    axis([min(h), max(h), 3, 8])
     set(gca,'FontSize',16);
+end
+
+function step1(X0, X1, X2, d, sigma_std, V, s)
+    h = sigma_std*0.3;
+    [~, data6]  = algorithm(X2, X1, h, 1, d, s);
+    [~, data6n] = algorithm(X2, X1, h, 7, d, s);
+%    [~, data6nn] = algorithm(X2, X1, sigma, 8);
+    %subplot('position',[0.04 0.1 0.45 0.82]);
+    i = 1;
+    subplot('position', [0.02*i+0.22*(i-1) 0.12 0.23 0.80]);
+    show_im(3, 3, V*X0);
+    title('Pure Signal')
+    axis off
+    i = 2;
+    subplot('position', [0.02*i+0.22*(i-1) 0.12 0.23 0.80]);
+    show_im(3, 3, V*X1);
+    title('Noisy')
+    axis off
+    i = 3;
+    subplot('position', [0.02*i+0.22*(i-1) 0.12 0.23 0.80]);
+    show_im(3, 3, V*data6);
+    title('SCRE')
+    axis off
+    %set(gca,'FontSize',16);
+    
+    %subplot('position',[0.53 0.1 0.45 0.82])
+    i = 4;
+    subplot('position', [0.02*i+0.22*(i-1) 0.12 0.23 0.80]);
+    show_im(3, 3, V*data6n);
+    title('{\it{l}}-SCRE')
+    axis off
+    %set(gca,'FontSize',16);
+end
+
+
+function show_im(m, n, data2)
+    im = zeros(64*m,64*n);
+    for i = 1:m
+        for j = 1:n
+            im((i-1)*64+1:i*64,(j-1)*64+1:j*64) = reshape(data2(:,(i-1)*n+j),[64,64]);
+        end
+    end
+    image(im*200);
+end
+
+function result = step2(X1, X2, d, Data_o, sigma_std, s)
+%    [X1, X2, ~] = generate_sphere(0.04, D, sample_size, sample_size);
+    h = (0.1:0.1:0.9)*sigma_std;
+    result = zeros(8, length(h));
+    %s = 30;
+    for i = 1:length(h)
+        [~, data6]     = algorithm(X2, X1, h(i), 1, d, s);
+        [~, data6n]    = algorithm(X2, X1, h(i), 7, d, s);
+        [~, data6nn]   = algorithm(X2, X1, h(i), 8, d, s);
+        [~, data6nnn]  = algorithm(X2, X1, h(i), 9, d, s);
+        result(1,i) = average_distance(data6, Data_o);
+        result(2,i) = average_distance(data6n, Data_o);
+        result(3,i) = average_distance(data6nn, Data_o);
+        result(4,i) = average_distance(data6nnn, Data_o);
+        result(5,i) = max_distance(data6, Data_o);
+        result(6,i) = max_distance(data6n, Data_o);
+        result(7,i) = max_distance(data6nn, Data_o);
+        result(8,i) = max_distance(data6nnn, Data_o);
+    end
 end
 
 
@@ -126,7 +154,7 @@ function [data_ini, samples, X] = generate_sphere(sigma, D, NumSample, NumIni)
 end
 
 
-function [steps, data_move] = algorithm(data, data_move, sigma, algo, d)
+function [steps, data_move] = algorithm(data, data_move, sigma, algo, d, s)
     epsion = 1e-10;
     max_iter = 10000;
     steps = 0;
@@ -147,7 +175,7 @@ function [steps, data_move] = algorithm(data, data_move, sigma, algo, d)
             elseif algo == 6
                 direction = Hc66(data_move(:,i), sigma, data, d, step);
             elseif algo == 7
-                direction = Hc77(data_move(:,i), sigma, data, d, step);
+                direction = Hc77(data_move(:,i), sigma, data, d, step, s);
                 %direction = xia(data_move(:,i), data, sigma, 3, 2);     
             elseif algo == 8
                 direction = xia(data_move(:,i), data, sigma, 2, d, step);
@@ -254,7 +282,7 @@ function g = Hc1(x, sigma, data, d, step)
 end
 
 
-function g = Hc77(x, sigma, data, d, step)
+function g = Hc77(x, sigma, data, d, step, s)
 
     sq_distance = sum((data - x).^2,1);
     [~, ind] = sort(sq_distance);
@@ -262,7 +290,7 @@ function g = Hc77(x, sigma, data, d, step)
     c = zeros(size(x));
     sum_r = 0;
     %for i = 1:size(data,2)
-    s = 20;
+    %s = 20;
     for i = ind(1:s)
         r = exp(-norm(x - data(:,i)).^2/(sigma^2));
         c = c + r*data(:,i);

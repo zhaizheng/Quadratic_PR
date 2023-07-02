@@ -1,53 +1,32 @@
 figure(1);
 sample_size = 300; % in the paper, we let it to be 300;
 D = 2; d = 1;
+t = tiledlayout(2,2,'TileSpacing','Compact');
 step1(sample_size, D, d);
-%figure(2);
 result = step2(sample_size, D, d);
-%saveas(gcf,'result1','eps');
-%saveas(gcf,'result2','eps');
-
 
 function step1(sample_size, D, d)
     [X1, X2, ~] = generate_sphere(0.08, D, sample_size, sample_size);
+    neig = [100, 100, 100, 30, 30, 30];
+    q = [0 -5 -10 0 -5 -10];
     sigma = 0.4;
-    [~, data6]  = algorithm(X2, X1, sigma, 1, d);
-    [~, data6n] = algorithm(X2, X1, sigma, 7, d);
-%    [~, data6nn] = algorithm(X2, X1, sigma, 8);
-    %subplot('position',[0.04 0.1 0.45 0.82]);
-    subplot(2,2,1)
-    plot(X2(1,:), X2(2,:), 'd');
-    N2 = normalize(data6);
-    hold on
-    plot(data6(1,:), data6(2,:), 'b.');
-    hold on
-    plot(N2(1,:), N2(2,:), 'r.');
-    title('SCRE')
-    set(gca,'FontSize',16);
-    
-    %subplot('position',[0.53 0.1 0.45 0.82])
-    subplot(2,2,2)
-    plot(X2(1,:), X2(2,:), 'd');
-    N3 = normalize(data6n);
-    hold on
-    plot(data6n(1,:), data6n(2,:), 'b.');
-    hold on
-    plot(N3(1,:), N3(2,:), 'r.');
-    title('{\it{l}}-SCRE')
-    set(gca,'FontSize',16);
-%     
-%     subplot(1,3,3)
-%     plot(X2(1,:), X2(2,:), 'd');
-%     N3 = normalize(data6nn);
-%     hold on
-%     plot(data6nn(1,:), data6nn(2,:), 'b.');
-%     hold on
-%     plot(N3(1,:), N3(2,:), 'r.');
-%     title('Xia')
-    
-
-%    average_distance(data6, bsxfun(@rdivide, data6, sqrt(sum(data6.^2,1))))
-%    average_distance(data6n, bsxfun(@rdivide, data6n, sqrt(sum(data6n.^2,1))))
+    data_case = cell(1,6);
+    for i = 1:6
+        [~, data_case{i}]  =  algorithm(X2, X1, sigma, 0, d, neig(i), q(i));
+    end
+      
+    for k = 1:2
+        i = 2+(k-1)*3;
+        nexttile
+        plot(X2(1,:), X2(2,:), 'd');
+        N2 = normalize(data_case{i});
+        hold on
+        plot(data_case{i}(1,:), data_case{i}(2,:), 'b.');
+        hold on
+        plot(N2(1,:), N2(2,:), 'r.');
+        title(['{\it{l}}-SCRE: neig=',num2str(neig(i)),',q=',num2str(q(i))]);%d',neig(i),q(i));
+        set(gca,'FontSize',16);
+    end
 end
 
 
@@ -55,45 +34,53 @@ function result = step2(sample_size, D, d)
     [X1, X2, ~] = generate_sphere(0.04, D, sample_size, sample_size);
     sigma = 0.1:0.1:0.9;
     result = zeros(8, length(sigma));
+    data2 = cell(1,3);
     for i = 1:length(sigma)
-        [~, data6]     = algorithm(X2, X1, sigma(i), 1, d);
-        [~, data6n]    = algorithm(X2, X1, sigma(i), 7, d);
+        neig = 30; 
+        q = 0;
+        [~, data2{1}]  =  algorithm(X2, X1, sigma(i), 0, d, neig, q);
+        q = -5;
+        [~, data2{2}]  =  algorithm(X2, X1, sigma(i), 0, d, neig, q);
+         q = -10;
+        [~, data2{3}]  =  algorithm(X2, X1, sigma(i), 0, d, neig, q);
         [~, data6nn]   = algorithm(X2, X1, sigma(i), 8, d);
         [~, data6nnn]  = algorithm(X2, X1, sigma(i), 9, d);
-        result(1,i) = average_distance(data6, bsxfun(@rdivide, data6, sqrt(sum(data6.^2,1))));
-        result(2,i) = average_distance(data6n, bsxfun(@rdivide, data6n, sqrt(sum(data6n.^2,1))));
-        result(3,i) = average_distance(data6nn, bsxfun(@rdivide, data6nn, sqrt(sum(data6nn.^2,1))));
-        result(4,i) = average_distance(data6nnn, bsxfun(@rdivide, data6nnn, sqrt(sum(data6nnn.^2,1))));
-        result(5,i) = max_distance(data6, bsxfun(@rdivide, data6, sqrt(sum(data6.^2,1))));
-        result(6,i) = max_distance(data6n, bsxfun(@rdivide, data6n, sqrt(sum(data6n.^2,1))));
-        result(7,i) = max_distance(data6nn, bsxfun(@rdivide, data6nn, sqrt(sum(data6nn.^2,1))));
-        result(8,i) = max_distance(data6nnn, bsxfun(@rdivide, data6nnn, sqrt(sum(data6nnn.^2,1))));
+        result(1,i) = average_distance(data2{1}, bsxfun(@rdivide, data2{1}, sqrt(sum(data2{1}.^2,1))));
+        result(2,i) = average_distance(data2{2}, bsxfun(@rdivide, data2{2}, sqrt(sum(data2{2}.^2,1))));
+        result(3,i) = average_distance(data2{3}, bsxfun(@rdivide, data2{3}, sqrt(sum(data2{3}.^2,1))));
+        result(4,i) = average_distance(data6nn, bsxfun(@rdivide, data6nn, sqrt(sum(data6nn.^2,1))));
+        result(5,i) = average_distance(data6nnn, bsxfun(@rdivide, data6nnn, sqrt(sum(data6nnn.^2,1))));
+        result(6,i) = max_distance(data2{1}, bsxfun(@rdivide, data2{1}, sqrt(sum(data2{1}.^2,1))));
+        result(7,i) = max_distance(data2{2}, bsxfun(@rdivide, data2{2}, sqrt(sum(data2{2}.^2,1))));
+        result(8,i) = max_distance(data2{3}, bsxfun(@rdivide, data2{3}, sqrt(sum(data2{3}.^2,1))));
+        result(9,i) = max_distance(data6nn, bsxfun(@rdivide, data6nn, sqrt(sum(data6nn.^2,1))));
+        result(10,i) = max_distance(data6nnn, bsxfun(@rdivide, data6nnn, sqrt(sum(data6nnn.^2,1))));
     end
 %     plot(result(1,:),'-*')
 %     hold on
 %     plot(result(2,:),'-o')
     %subplot('position',[0.04 0.14 0.45 0.82])
-    marker1 = {'-*','-o','-->','--d'};
-    subplot(2,2,3)
-    for k = 1:4
+    marker1 = {'-.s','-.*','-.o','-->','--d'};
+    nexttile
+    for k = 1:5
         semilogy(sigma,result(k,:),marker1{k},'linewidth',1.2); 
         hold on; 
     end
     %semilogy(sigma, result(2,:),'--o','linewidth',1.2); %hold on; semilogy(sigma, result(3,:),'--s');
-    legend('SCRE','{\it{l}}-SCRE','MFIT-i', 'MFIT-ii')
+    legend('{\it{l}}-SCRE:\Gamma(0)','{\it{l}}-SCRE:\Gamma(-5)','{\it{l}}-SCRE:\Gamma(-10)','MFIT-i', 'MFIT-ii')
     xlabel('h')
     title('Average Margin')
     set(gca,'FontSize',16);
     
     
     %subplot('position',[0.53 0.14 0.45 0.82])
-    subplot(2,2,4)
-    for k = 1:4
-        semilogy(sigma,result(4+k,:),marker1{k},'linewidth',1.2); 
+    nexttile
+    for k = 1:5
+        semilogy(sigma,result(5+k,:),marker1{k},'linewidth',1.2); 
         hold on; 
     end  
     %semilogy(sigma, result(6,:),'--o','linewidth',1.2); %hold on; semilogy(sigma, result(6,:),'--s')
-    legend('SCRE','{\it{l}}-SCRE','MFIT-i', 'MFIT-ii')
+    legend('{\it{l}}-SCRE:\Gamma(0)','{\it{l}}-SCRE:\Gamma(-5)','{\it{l}}-SCRE:\Gamma(-10)','MFIT-i', 'MFIT-ii')
     xlabel('h')
     title('Hausdorff')
     set(gca,'FontSize',16);
@@ -126,7 +113,7 @@ function [data_ini, samples, X] = generate_sphere(sigma, D, NumSample, NumIni)
 end
 
 
-function [steps, data_move] = algorithm(data, data_move, sigma, algo, d)
+function [steps, data_move] = algorithm(data, data_move, sigma, algo, d, neig, q)
     epsion = 1e-10;
     max_iter = 10000;
     steps = 0;
@@ -134,7 +121,9 @@ function [steps, data_move] = algorithm(data, data_move, sigma, algo, d)
     step = 0.5;
     for i = 1:n
         for k = 1:max_iter
-            if algo == 1
+            if algo == 0
+                direction = local_mean_shift_parametrized(data_move(:,i), sigma, data, d, step, neig, q);
+            elseif algo == 1
                 direction = Hc1(data_move(:,i), sigma, data, d, step);
             elseif algo == 2
                 direction = Hc2(data_move(:,i), sigma, data, d, step);
@@ -254,7 +243,7 @@ function g = Hc1(x, sigma, data, d, step)
 end
 
 
-function g = Hc77(x, sigma, data, d, step)
+function g = local_mean_shift_parametrized(x, sigma, data, d, step, neig, q)
 
     sq_distance = sum((data - x).^2,1);
     [~, ind] = sort(sq_distance);
@@ -262,7 +251,7 @@ function g = Hc77(x, sigma, data, d, step)
     c = zeros(size(x));
     sum_r = 0;
     %for i = 1:size(data,2)
-    s = 20;
+    s = neig;
     for i = ind(1:s)
         r = exp(-norm(x - data(:,i)).^2/(sigma^2));
         c = c + r*data(:,i);
@@ -270,13 +259,43 @@ function g = Hc77(x, sigma, data, d, step)
     end
     c = c/sum_r;
     B = zeros(size(x,1));
-%    for i = 1:size(data,2)
     for i = ind(1:s)
         r = exp(-norm(x - data(:,i)).^2/(sigma^2));
         B = B + r*(data(:,i)-c)*(data(:,i)-c)';
     end
-    [V,~,~] = svd(B);
+    BB = B/sum_r-((1-q)*(c-x)*(c-x)');
+    [U,E] = eig(BB);
+    [~,ind] =sort(diag(E),'descend');
+    V = U(:,ind);
     P = eye(size(x, 1))-V(:,1:d)*V(:,1:d)';
-    %g = 2*sum_r/size(data,2)/sigma^2*P*(c - x);
     g = step*P*(c - x);
+end
+
+
+function [g,temp1, temp2] = Hc(x, sigma, data, d, step, q)
+    H = zeros(size(x,1));
+    c = zeros(size(x));
+    sum_r = 0;
+    for i = 1:size(data,2)
+        r = exp(-norm(x - data(:,i)).^2/(sigma^2));
+        H = H + r*(data(:,i)-x)*(data(:,i)-x)';
+        c = c + r*data(:,i);
+        sum_r = sum_r + r;
+    end
+    c = c/sum_r;
+    B = zeros(size(x,1));
+    for i = 1:size(data,2)
+        r = exp(-norm(x - data(:,i)).^2/(sigma^2));
+        B = B + r*(data(:,i)-x)*(data(:,i)-x)';
+    end
+    BB = B/sum_r-((1-q)*(c-x)*(c-x)');
+    [U,E] = eig(BB);
+    [~,ind] =sort(diag(E),'descend');
+    V = U(:,ind);
+    
+    temp1 = V(:,2);
+    temp2 = (c-x);
+
+    P = eye(size(x, 1))-V(:,1:d)*V(:,1:d)';
+    g = step*P*(c-x);
 end

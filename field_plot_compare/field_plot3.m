@@ -1,6 +1,10 @@
 
-demo = 2;% demo = 2
+demo = 1;% demo = 2
+figure
+t = tiledlayout(1,4,'TileSpacing','Compact');
 generate_result(demo);
+
+
 
 function generate_result(demo)
     data = circle(150, 0.1);
@@ -10,15 +14,16 @@ function generate_result(demo)
         data_move = circle(30, 1);
     end
   
-    title = {'SCRE','SCRE with LOG','{\it{l}}-SCRE with LOG'};
-    for i = 1:3
-        subplot('position', [0.04*i+0.29*(i-1) 0.12 0.28 0.86]);
+    Title = {'\Gamma(-1)','\Gamma(0)','\Gamma(0.5)','\Gamma(1)'};
+    for i = 1:4
+        %subplot('position', [0.04*i+0.29*(i-1) 0.12 0.28 0.86]);
+        nexttile
         if demo==2
             plot(data_move(1,:),data_move(2,:),'d','MarkerFaceColor', 'r');           
         end
         ridge2(data, data_move, i-1, demo);
         axis([-6.5 6.5 -6.5 6.5])
-        xlabel(title{i})
+        title(Title{i},'Interpreter','tex')
         set(gca,'FontSize',16);
     end
 end
@@ -29,17 +34,21 @@ function ridge2(data, data_move, algo, demo)
     sigma = 0.9;
     epsion = 1e-6;
     max_iter = 3;
+    step = 0.5;
     
     for i = 1:size(data_move,2)
         track = [];
         for k = 1:max_iter
             if algo == 0
-                [direction,temp1,temp2] = projection_gradient(data_move(:,i), data, sigma);
+                q = -1;
             elseif algo == 1
-                [direction,temp1,temp2] = Hc(data_move(:,i),sigma,data,1);
+                q = 0;
             elseif algo == 2
-                [direction,temp1,temp2] = Hc2(data_move(:,i),sigma,data,1);
+                q = 0.5;
+            elseif algo == 3
+                q = 1;
             end
+            [direction,temp1,temp2] = Hc(data_move(:,i),sigma,data,1,step, q);
             track = [track, [data_move(:,i); angle(temp1, temp2); temp1; temp2]];
             data_move(:,i) = data_move(:,i)+direction;
             if norm(direction) < epsion
@@ -72,7 +81,7 @@ function d = angle(a,b)
 end
 
 
-function [g,temp1, temp2] = Hc(x, sigma, data, d)
+function [g,temp1, temp2] = Hc(x, sigma, data, d, step, q)
     H = zeros(size(x,1));
     c = zeros(size(x));
     sum_r = 0;
@@ -86,55 +95,20 @@ function [g,temp1, temp2] = Hc(x, sigma, data, d)
     B = zeros(size(x,1));
     for i = 1:size(data,2)
         r = exp(-norm(x - data(:,i)).^2/(sigma^2));
-        B = B + r*(data(:,i)-c)*(data(:,i)-c)';
+        B = B + r*(data(:,i)-x)*(data(:,i)-x)';
     end
-    [V,~,~] = svd(B);
-    temp1 = V(:,2);
-    temp2 = (c-x);
-    %[U,~,~] = svd(H);
-    %test_U = V(:,1:d)'*U;
-    %[~,location] = min(sum(test_U.^2, 1));
-    %P = U(:,location)*U(:,location)';
-    P = eye(size(x, 1))-V(:,1:d)*V(:,1:d)';
-    %g = 2*sum_r/size(data,2)/sigma^2*P*(c - x);
-    g = 0.5*P*(c-x);
-end
-
-
-function [g, temp1, temp2] = Hc2(x, sigma, data, d)
-
-    sq_distance = sum((data - x).^2,1);
-    [~, ind] = sort(sq_distance);
-    s = 3;
+    BB = B/sum_r-((1-q)*(c-x)*(c-x)');
+    [U,E] = eig(BB);
+    [~,ind] =sort(diag(E),'descend');
+    V = U(:,ind);
     
-    H = zeros(size(x,1));
-    c = zeros(size(x));
-    sum_r = 0;
-   % for i = 1:size(data,2)
-    for i = ind(1:s)
-        r = exp(-norm(x - data(:,i)).^2/(sigma^2));
-       % H = H + r*(data(:,i)-x)*(data(:,i)-x)';
-        c = c + r*data(:,i);
-        sum_r = sum_r + r;
-    end
-    c = c/sum_r;
-    B = zeros(size(x,1));
-  %  for i = 1:size(data,2)
-    for i = ind(1:s)
-        r = exp(-norm(x - data(:,i)).^2/(sigma^2));
-        B = B + r*(data(:,i)-c)*(data(:,i)-c)';
-    end
-    [V,~,~] = svd(B);
     temp1 = V(:,2);
     temp2 = (c-x);
-    %[U,~,~] = svd(H);
-    %test_U = V(:,1:d)'*U;
-    %[~,location] = min(sum(test_U.^2, 1));
-    %P = U(:,location)*U(:,location)';
+
     P = eye(size(x, 1))-V(:,1:d)*V(:,1:d)';
-    %g = 2*sum_r/size(data,2)/sigma^2*P*(c - x);
-    g = 0.5*P*(c-x);
+    g = step*P*(c-x);
 end
+
 
 
 function [P,temp1, g] = projection_gradient(x, Xi, sigma)
